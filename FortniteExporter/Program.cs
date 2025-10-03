@@ -1,15 +1,15 @@
 using System;
 using System.IO;
 using CUE4Parse.FileProvider;
-using CUE4Parse.UE4.Objects.UObject;
-using CUE4Parse.UE4.Objects.Engine;
+using CUE4Parse.UE4.Assets;
+using CUE4Parse.UE4.Assets.Exports.Texture;
 using SkiaSharp;
 
 class Program
 {
     static void Main(string[] args)
     {
-        // Point to your downloaded PAKs
+        // Path to your PAKs (adjust if needed)
         var provider = new DefaultFileProvider("./paks", SearchOption.AllDirectories, isCaseInsensitive: true);
         provider.Initialize();
 
@@ -18,11 +18,12 @@ class Program
 
         foreach (var file in provider.Files)
         {
-            if (file.Key.Contains("/OfferCatalog/Textures/")) // filter only shop images
+            if (file.Key.Contains("/OfferCatalog/Textures/")) // shop images only
             {
                 try
                 {
-                    var export = provider.LoadObject<UTexture2D>(file.Key);
+                    var pkg = provider.LoadPackage(file.Key);
+                    var export = pkg.GetExport<UTexture2D>();
                     if (export != null)
                     {
                         var tex = export.Decode();
@@ -31,19 +32,26 @@ class Program
                             using var image = SKImage.FromBitmap(tex);
                             using var data = image.Encode(SKEncodedImageFormat.Png, 100);
 
-                            var outPath = Path.Combine("./docs", Path.GetFileNameWithoutExtension(file.Key) + ".png");
-                            using var fs = File.OpenWrite(outPath);
+                            var safeName = Path.GetFileNameWithoutExtension(file.Key)
+                                .Replace("/", "_")
+                                .Replace("\\", "_");
+
+                            var outPath = Path.Combine("./docs", safeName + ".png");
+
+                            using var fs = File.Open(outPath, FileMode.Create, FileAccess.Write);
                             data.SaveTo(fs);
 
-                            Console.WriteLine($"Exported: {outPath}");
+                            Console.WriteLine($"✅ Exported: {outPath}");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Failed on {file.Key}: {ex.Message}");
+                    Console.WriteLine($"❌ Failed on {file.Key}: {ex.Message}");
                 }
             }
         }
+
+        Console.WriteLine("🎉 Export finished.");
     }
 }
