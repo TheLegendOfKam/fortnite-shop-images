@@ -1,28 +1,44 @@
 using System;
 using System.IO;
+using System.Linq;
 using CUE4Parse.FileProvider;
-using CUE4Parse.UE4.Assets.Exports.Texture;
+using CUE4Parse.UE4.Objects.UObject;
+using SkiaSharp;
 
-class Program {
-    static void Main() {
-        string pakDir = "./paks";
-        string outDir = "./docs";
+class Program
+{
+    static void Main(string[] args)
+    {
+        string pakPath = "./paks";   // folder where your pak files are
+        string outPath = "./docs";   // GitHub Pages folder
 
-        var provider = new DefaultFileProvider(pakDir, SearchOption.AllDirectories);
+        var provider = new DefaultFileProvider(pakPath, SearchOption.AllDirectories, true);
         provider.Initialize();
 
-        foreach (var file in provider.Files) {
-            if (file.Value.Path.Contains("/OfferCatalog/Textures/")) {
-                try {
-                    var obj = provider.LoadObject(file.Value.Path);
-                    if (obj is UTexture2D tex) {
-                        var data = tex.Decode();
-                        var savePath = Path.Combine(outDir, file.Value.Path.TrimStart('/') + ".png");
-                        Directory.CreateDirectory(Path.GetDirectoryName(savePath)!);
-                        File.WriteAllBytes(savePath, data);
-                        Console.WriteLine($"Exported {savePath}");
+        var textures = provider.Files
+            .Where(f => f.Key.Contains("/OfferCatalog/Textures/") && f.Key.EndsWith(".uasset"))
+            .Select(f => f.Value);
+
+        foreach (var file in textures)
+        {
+            try
+            {
+                var export = provider.LoadObject(file.Path);
+                if (export is CUE4Parse.UE4.Assets.Exports.Texture.UTexture2D tex)
+                {
+                    using var bitmap = tex.Decode()?.ToSKBitmap();
+                    if (bitmap != null)
+                    {
+                        var outFile = Path.Combine(outPath, file.NameWithoutExtension + ".png");
+                        using var fs = File.OpenWrite(outFile);
+                        bitmap.Encode(SKEncodedImageFormat.Png, 100).SaveTo(fs);
+                        Console.WriteLine($"Exported {outFile}");
                     }
-                } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed: {file.Path} - {ex.Message}");
             }
         }
     }
