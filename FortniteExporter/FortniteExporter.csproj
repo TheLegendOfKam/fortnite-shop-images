@@ -4,6 +4,6 @@
     <TargetFramework>net7.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CUE4Parse" Version="latest" />
+    <ProjectReference Include="../CUE4Parse/CUE4Parse/CUE4Parse.csproj" />
   </ItemGroup>
 </Project>
