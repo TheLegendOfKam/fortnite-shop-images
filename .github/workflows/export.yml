@@ -3,11 +3,12 @@ name: Export Fortnite Shop Images
 on:
   schedule:
     - cron: "0 2 * * *"   # run daily at 2AM UTC
-  workflow_dispatch:
+  workflow_dispatch:       # allows manual run
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
 
@@ -16,16 +17,27 @@ jobs:
         with:
           dotnet-version: '7.0.x'
 
-      - name: Restore
-        run: dotnet restore FortniteExporter
+      - name: Install CUE4Parse
+        run: |
+          git clone https://github.com/FabianFG/CUE4Parse.git
+          dotnet build CUE4Parse/CUE4Parse.sln -c Release
 
-      - name: Build & Run Exporter
-        run: dotnet run --project FortniteExporter/FortniteExporter.csproj
+      - name: Download Fortnite Paks
+        run: |
+          mkdir -p paks
+          # 🔥 This URL changes with Fortnite builds. For now we’ll just show placeholder.
+          # Replace with actual Epic CDN pak links (we can automate this later).
+          echo "TODO: download .pak files into ./paks"
 
-      - name: Commit & Push Images
+      - name: Run Exporter
+        run: |
+          mkdir -p docs
+          dotnet run --project FortniteExporter/FortniteExporter.csproj
+
+      - name: Commit & Push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add docs
-          git commit -m "Daily export" || echo "No new images"
+          git commit -m "Daily export" || echo "No changes"
           git push
