@@ -3,7 +3,9 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="../CUE4Parse/CUE4Parse/CUE4Parse.csproj" />
+    <PackageReference Include="SkiaSharp" Version="2.88.6" />
   </ItemGroup>
 </Project>
