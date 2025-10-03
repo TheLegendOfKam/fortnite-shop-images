@@ -3,45 +3,47 @@ using System.IO;
 using CUE4Parse.FileProvider;
 using CUE4Parse.UE4.Assets;
 using CUE4Parse.UE4.Assets.Exports.Texture;
+using CUE4Parse.UE4.Objects.UObject;
 using SkiaSharp;
 
 class Program
 {
     static void Main(string[] args)
     {
-        // Path to your PAKs (adjust if needed)
-        var provider = new DefaultFileProvider("./paks", SearchOption.AllDirectories, isCaseInsensitive: true);
+        var provider = new DefaultFileProvider("./paks", SearchOption.AllDirectories, true);
         provider.Initialize();
 
-        // Create docs folder for GitHub Pages
         Directory.CreateDirectory("./docs");
 
         foreach (var file in provider.Files)
         {
-            if (file.Key.Contains("/OfferCatalog/Textures/")) // shop images only
+            if (file.Key.Contains("/OfferCatalog/Textures/")) // shop only
             {
                 try
                 {
                     var pkg = provider.LoadPackage(file.Key);
-                    var export = pkg.GetExport<UTexture2D>();
-                    if (export != null)
+                    if (pkg != null)
                     {
-                        var tex = export.Decode();
-                        if (tex != null)
+                        // Grab the first export and cast to UTexture2D
+                        var export = pkg.GetExport(0) as UTexture2D;
+                        if (export != null)
                         {
-                            using var image = SKImage.FromBitmap(tex);
-                            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+                            var tex = export.DecodeTexture(); // <-- new API name
+                            if (tex != null)
+                            {
+                                using var image = SKImage.FromBitmap(tex);
+                                using var data = image.Encode(SKEncodedImageFormat.Png, 100);
 
-                            var safeName = Path.GetFileNameWithoutExtension(file.Key)
-                                .Replace("/", "_")
-                                .Replace("\\", "_");
+                                var safeName = Path.GetFileNameWithoutExtension(file.Key)
+                                    .Replace("/", "_")
+                                    .Replace("\\", "_");
 
-                            var outPath = Path.Combine("./docs", safeName + ".png");
+                                var outPath = Path.Combine("./docs", safeName + ".png");
+                                using var fs = File.Open(outPath, FileMode.Create, FileAccess.Write);
+                                data.SaveTo(fs);
 
-                            using var fs = File.Open(outPath, FileMode.Create, FileAccess.Write);
-                            data.SaveTo(fs);
-
-                            Console.WriteLine($"✅ Exported: {outPath}");
+                                Console.WriteLine($"✅ Exported: {outPath}");
+                            }
                         }
                     }
                 }
