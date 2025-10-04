@@ -18,17 +18,22 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '8.0.x'   # ✅ use .NET 8 since CUE4Parse targets net8 now
+          dotnet-version: '8.0.x'   # ✅ must match your csproj net8.0
+
+      - name: Restore dependencies
+        run: dotnet restore FortniteExporter/FortniteExporter.csproj
 
       - name: Build CUE4Parse
-        run: |
-          dotnet build CUE4Parse/CUE4Parse.sln -c Release
+        run: dotnet build CUE4Parse/CUE4Parse.sln -c Release
+
+      - name: Build Exporter
+        run: dotnet build FortniteExporter/FortniteExporter.csproj -c Release
 
       - name: Download Fortnite Paks
         run: |
           mkdir -p paks
           echo "TODO: download .pak files into ./paks"
-          # later we’ll automate grabbing pakchunk files
+          # later automation: curl Epic’s CDN links into paks/
 
       - name: Run Exporter
         run: |
