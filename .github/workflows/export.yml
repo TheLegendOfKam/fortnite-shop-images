@@ -10,29 +10,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repo with submodules
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
         with:
-          dotnet-version: '7.0.x'
+          dotnet-version: '8.0.x'   # ✅ use .NET 8 since CUE4Parse targets net8 now
 
-      - name: Install CUE4Parse
+      - name: Build CUE4Parse
         run: |
-          git clone https://github.com/FabianFG/CUE4Parse.git
           dotnet build CUE4Parse/CUE4Parse.sln -c Release
 
       - name: Download Fortnite Paks
         run: |
           mkdir -p paks
-          # 🔥 This URL changes with Fortnite builds. For now we’ll just show placeholder.
-          # Replace with actual Epic CDN pak links (we can automate this later).
           echo "TODO: download .pak files into ./paks"
+          # later we’ll automate grabbing pakchunk files
 
       - name: Run Exporter
         run: |
           mkdir -p docs
-          dotnet run --project FortniteExporter/FortniteExporter.csproj
+          dotnet run --project FortniteExporter/FortniteExporter.csproj -c Release
 
       - name: Commit & Push
         run: |
