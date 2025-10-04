@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using CUE4Parse.FileProvider;
 using CUE4Parse.UE4.Assets.Exports.Texture;
+using CUE4Parse.UE4.Versions;
 using SkiaSharp;
 
 class Program
@@ -19,32 +20,36 @@ class Program
 
         Directory.CreateDirectory(outputDir);
 
-        // Load pak files
-        var provider = new DefaultFileProvider(pakDir, SearchOption.AllDirectories, true);
+        // ✅ Use the new provider constructor
+        var provider = new DefaultFileProvider(pakDir, SearchOption.AllDirectories, true, new VersionContainer(EGame.GAME_UE5_1));
         provider.Initialize();
 
         Console.WriteLine("Loaded Paks: " + provider.MountedVfs.Count);
 
-        // Example: export ALL textures
+        // Only look in OfferCatalog textures (shop images)
         foreach (var file in provider.Files)
         {
-            if (file.Key.EndsWith(".uasset", StringComparison.OrdinalIgnoreCase))
+            if (file.Key.Contains("/OfferCatalog/Textures/") && file.Key.EndsWith(".uasset", StringComparison.OrdinalIgnoreCase))
             {
                 try
                 {
-                    var export = provider.LoadObject(file.Key);
-                    if (export is UTexture2D texture)
+                    var exports = provider.LoadAllObjects(file.Key);
+
+                    foreach (var export in exports)
                     {
-                        var bitmap = texture.Decode() as SKBitmap;
-                        if (bitmap != null)
+                        if (export is UTexture2D texture)
                         {
-                            string fileName = Path.GetFileNameWithoutExtension(file.Key) + ".png";
-                            string savePath = Path.Combine(outputDir, fileName);
+                            var image = texture.DecodeTexture(); // ✅ correct extension
+                            if (image != null)
+                            {
+                                string fileName = Path.GetFileNameWithoutExtension(file.Key) + ".png";
+                                string savePath = Path.Combine(outputDir, fileName);
 
-                            using var fs = File.OpenWrite(savePath);
-                            bitmap.Encode(SKEncodedImageFormat.Png, 100).SaveTo(fs);
+                                using var fs = File.OpenWrite(savePath);
+                                image.Encode(SKEncodedImageFormat.Png, 100).SaveTo(fs);
 
-                            Console.WriteLine($"Exported {fileName}");
+                                Console.WriteLine($"Exported {fileName}");
+                            }
                         }
                     }
                 }
