@@ -1,65 +1,40 @@
 using System;
 using System.IO;
+using System.Linq;
 using CUE4Parse.FileProvider;
 using CUE4Parse.UE4.Assets.Exports.Texture;
-using CUE4Parse.UE4.Versions;
 using SkiaSharp;
 
 class Program
 {
-    static void Main(string[] args)
+    static void Main()
     {
-        string pakDir = Path.Combine(Directory.GetCurrentDirectory(), "paks");
-        string outputDir = Path.Combine(Directory.GetCurrentDirectory(), "docs");
-
-        if (!Directory.Exists(pakDir))
-        {
-            Console.WriteLine("No paks folder found. Put Fortnite .pak files in /paks.");
-            return;
-        }
-
-        Directory.CreateDirectory(outputDir);
-
-        // ✅ Use the new provider constructor
-        var provider = new DefaultFileProvider(pakDir, SearchOption.AllDirectories, true, new VersionContainer(EGame.GAME_UE5_1));
+        var provider = new DefaultFileProvider("paks", SearchOption.AllDirectories, true);
         provider.Initialize();
 
-        Console.WriteLine("Loaded Paks: " + provider.MountedVfs.Count);
+        Directory.CreateDirectory("docs");
 
-        // Only look in OfferCatalog textures (shop images)
-        foreach (var file in provider.Files)
+        foreach (var file in provider.Files.Values.Where(f => f.Path.EndsWith(".uasset")))
         {
-            if (file.Key.Contains("/OfferCatalog/Textures/") && file.Key.EndsWith(".uasset", StringComparison.OrdinalIgnoreCase))
+            try
             {
-                try
+                var obj = provider.LoadObject(file);
+                if (obj is UTexture2D tex)
                 {
-                    var exports = provider.LoadAllObjects(file.Key);
+                    using var image = tex.Decode();
+                    using var data = image.Encode(SKEncodedImageFormat.Png, 100);
 
-                    foreach (var export in exports)
-                    {
-                        if (export is UTexture2D texture)
-                        {
-                            var image = texture.DecodeTexture(); // ✅ correct extension
-                            if (image != null)
-                            {
-                                string fileName = Path.GetFileNameWithoutExtension(file.Key) + ".png";
-                                string savePath = Path.Combine(outputDir, fileName);
+                    var name = Path.GetFileNameWithoutExtension(file.Path);
+                    var outPath = Path.Combine("docs", name + ".png");
 
-                                using var fs = File.OpenWrite(savePath);
-                                image.Encode(SKEncodedImageFormat.Png, 100).SaveTo(fs);
-
-                                Console.WriteLine($"Exported {fileName}");
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Failed {file.Key}: {ex.Message}");
+                    File.WriteAllBytes(outPath, data.ToArray());
+                    Console.WriteLine($"Exported {outPath}");
                 }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed {file.Path}: {ex.Message}");
+            }
         }
-
-        Console.WriteLine("✅ Export finished. Images saved to /docs/");
     }
 }
