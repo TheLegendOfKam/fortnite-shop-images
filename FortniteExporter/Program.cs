@@ -4,37 +4,43 @@ using System.Linq;
 using CUE4Parse.FileProvider;
 using CUE4Parse.UE4.Assets.Exports.Texture;
 using SkiaSharp;
+using CUE4Parse.UE4.Assets;
+using CUE4Parse_Conversion.Textures; 
 
 class Program
 {
-    static void Main()
+    static async Task Main(string[] args)
     {
-        var provider = new DefaultFileProvider("paks", SearchOption.AllDirectories, true);
+        // point to paks folder
+        var provider = new DefaultFileProvider("./paks", SearchOption.AllDirectories, true);
         provider.Initialize();
 
-        Directory.CreateDirectory("docs");
+        // load all textures
+        var textures = provider.LoadAllObjects<UTexture2D>();
 
-        foreach (var file in provider.Files.Values.Where(f => f.Path.EndsWith(".uasset")))
+        foreach (var tex in textures)
         {
             try
             {
-                var obj = provider.LoadObject(file);
-                if (obj is UTexture2D tex)
-                {
-                    using var image = tex.Decode();
-                    using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+                // decode to SKBitmap
+                var skBitmap = tex.DecodeTexture();
+                if (skBitmap == null) continue;
 
-                    var name = Path.GetFileNameWithoutExtension(file.Path);
-                    var outPath = Path.Combine("docs", name + ".png");
+                // save as PNG
+                using var image = SKImage.FromBitmap(skBitmap);
+                using var data = image.Encode(SKEncodedImageFormat.Png, 100);
 
-                    File.WriteAllBytes(outPath, data.ToArray());
-                    Console.WriteLine($"Exported {outPath}");
-                }
+                var path = Path.Combine("docs", tex.Name + ".png");
+                Directory.CreateDirectory("docs");
+                using var fs = File.OpenWrite(path);
+                data.SaveTo(fs);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed {file.Path}: {ex.Message}");
+                Console.WriteLine($"Failed to export {tex.Name}: {ex.Message}");
             }
         }
+
+        Console.WriteLine("✅ Export complete!");
     }
 }
